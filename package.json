@@ -1,48 +1,46 @@
 {
   "name": "openfox-git-workspace-map",
-  "version": "1.0.0",
-  "description": "OpenFox plugin: visualise the git topology (upstream → workspaces → branches → tracking), manage branches and workspaces, fetch remotes, and inspect dirty state. Badge in the session header opens an iframe panel.",
+  "version": "1.1.0",
+  "description": "OpenFox Git/workspace topology plugin — TypeScript backend and React panel.",
   "type": "module",
-  "main": "./src/index.js",
-  "files": [
-    "src",
-    "assets",
-    "README.md",
-    "LICENSE"
-  ],
+  "main": "./dist/server/plugin.js",
+  "files": ["dist", "README.md", "LICENSE"],
   "scripts": {
-    "test": "vitest run",
-    "test:e2e": "node scripts/e2e-harness.mjs",
-    "syntax": "node --check src/index.js && node --check src/git-state.js",
-    "verify": "npm run syntax && npm test && npm run test:e2e"
+    "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\"",
+    "typecheck": "tsc --noEmit",
+    "build:server": "tsup src/plugin.ts --format esm --dts --out-dir dist/server",
+    "build:ui": "vite build",
+    "build": "npm run clean && npm run build:server && npm run build:ui",
+    "test": "vitest run --config vitest.config.ts",
+    "verify": "npm run typecheck && npm test && npm run build"
   },
   "openfox": {
     "apiVersion": 2,
-    "entry": "./src/index.js",
+    "entry": "./dist/server/plugin.js",
     "displayName": "Git Workspace Map",
-    "description": "Visualise git topology, manage branches/workspaces, fetch remotes.",
-    "capabilities": [
-      "tools",
-      "ui",
-      "rpc",
-      "hooks",
-      "notifications",
-      "assets"
-    ],
+    "description": "Visualise Git topology and safely manage branches/workspaces from OpenFox.",
+    "capabilities": ["tools", "ui", "rpc", "hooks", "notifications", "assets"],
     "timeoutMs": 20000
   },
   "license": "MIT",
-  "keywords": [
-    "openfox",
-    "openfox-plugin",
-    "git",
-    "workspace",
-    "branch"
-  ],
-  "engines": {
-    "node": ">=20.0.0"
+  "engines": {"node": ">=20"},
+  "dependencies": {
+    "@vitejs/plugin-react": "^4.3.4",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "tsup": "^8.5.0",
+    "typescript": "^5.8.2",
+    "vite": "^6.1.0",
+    "vite-plugin-singlefile": "^2.2.0"
   },
   "devDependencies": {
-    "vitest": "^2.1.0"
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
+    "@types/node": "^22.19.15",
+    "@types/react": "^19.0.8",
+    "@types/react-dom": "^19.0.3",
+    "jsdom": "^29.1.1",
+    "vitest": "3.2.4"
   }
 }
