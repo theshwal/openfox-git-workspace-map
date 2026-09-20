@@ -1,0 +1,48 @@
+{
+  "name": "openfox-git-workspace-map",
+  "version": "1.0.0",
+  "description": "OpenFox plugin: visualise the git topology (upstream → workspaces → branches → tracking), manage branches and workspaces, fetch remotes, and inspect dirty state. Badge in the session header opens an iframe panel.",
+  "type": "module",
+  "main": "./src/index.js",
+  "files": [
+    "src",
+    "assets",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "test": "vitest run",
+    "test:e2e": "node scripts/e2e-harness.mjs",
+    "syntax": "node --check src/index.js && node --check src/git-state.js",
+    "verify": "npm run syntax && npm test && npm run test:e2e"
+  },
+  "openfox": {
+    "apiVersion": 2,
+    "entry": "./src/index.js",
+    "displayName": "Git Workspace Map",
+    "description": "Visualise git topology, manage branches/workspaces, fetch remotes.",
+    "capabilities": [
+      "tools",
+      "ui",
+      "rpc",
+      "hooks",
+      "notifications",
+      "assets"
+    ],
+    "timeoutMs": 20000
+  },
+  "license": "MIT",
+  "keywords": [
+    "openfox",
+    "openfox-plugin",
+    "git",
+    "workspace",
+    "branch"
+  ],
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "devDependencies": {
+    "vitest": "^2.1.0"
+  }
+}

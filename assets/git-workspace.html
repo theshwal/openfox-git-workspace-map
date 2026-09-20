@@ -1,0 +1,584 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Git Workspace Map</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --bg-elev: #111c33;
+      --bg-elev2: #182542;
+      --border: #243354;
+      --border-soft: #1b294a;
+      --fg: #e6ecf5;
+      --fg-mute: #8a98b4;
+      --accent: #60a5fa;
+      --green: #34d399;
+      --amber: #fbbf24;
+      --red: #f87171;
+      --indigo: #818cf8;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: var(--bg); color: var(--fg); font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; font-size: 13px; }
+    .topbar { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-bottom: 1px solid var(--border); background: var(--bg-elev); position: sticky; top: 0; z-index: 5; }
+    .topbar h1 { font-size: 14px; font-weight: 600; margin: 0; letter-spacing: 0.2px; }
+    .topbar .spacer { flex: 1; }
+    .pill { padding: 2px 8px; border-radius: 9999px; font-size: 11px; font-weight: 600; border: 1px solid var(--border); }
+    .pill.ok { background: rgba(52,211,153,0.12); border-color: rgba(52,211,153,0.4); color: var(--green); }
+    .pill.warn { background: rgba(251,191,36,0.12); border-color: rgba(251,191,36,0.4); color: var(--amber); }
+    .pill.bad { background: rgba(248,113,113,0.12); border-color: rgba(248,113,113,0.4); color: var(--red); }
+    .pill.muted { color: var(--fg-mute); }
+    button { background: var(--bg-elev2); color: var(--fg); border: 1px solid var(--border); border-radius: 6px; padding: 5px 10px; font-size: 12px; cursor: pointer; }
+    button:hover:not(:disabled) { background: #1f2e51; border-color: var(--accent); }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    button.primary { background: var(--accent); color: #0b1220; border-color: var(--accent); font-weight: 600; }
+    button.danger { background: rgba(248,113,113,0.12); color: var(--red); border-color: rgba(248,113,113,0.4); }
+    button.ghost { background: transparent; }
+    input, select { background: var(--bg-elev2); border: 1px solid var(--border); color: var(--fg); border-radius: 6px; padding: 5px 8px; font-size: 12px; font-family: inherit; }
+    input:focus, select:focus { outline: none; border-color: var(--accent); }
+
+    main { padding: 14px; display: grid; gap: 14px; }
+    section.card { background: var(--bg-elev); border: 1px solid var(--border-soft); border-radius: 8px; padding: 12px 14px; }
+    section.card h2 { margin: 0 0 8px; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; color: var(--fg-mute); }
+    .row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+    .kv { display: grid; grid-template-columns: 120px 1fr; gap: 4px 12px; font-size: 12px; }
+    .kv .k { color: var(--fg-mute); }
+    .kv .v { font-family: ui-monospace, "JetBrains Mono", "Fira Code", Menlo, monospace; word-break: break-all; }
+    .list { list-style: none; padding: 0; margin: 0; display: grid; gap: 4px; }
+    .list li { display: flex; align-items: center; gap: 8px; padding: 4px 6px; border-radius: 4px; }
+    .list li:hover { background: var(--bg-elev2); }
+    .list .name { font-family: ui-monospace, "JetBrains Mono", monospace; }
+    .list .meta { color: var(--fg-mute); font-size: 11px; }
+
+    .topology { display: grid; grid-template-columns: 1fr; gap: 6px; }
+    .topo-node { padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-elev2); }
+    .topo-node .label { color: var(--fg-mute); font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .topo-node .value { font-family: ui-monospace, monospace; font-size: 13px; word-break: break-all; }
+    .topo-arrow { color: var(--fg-mute); padding-left: 18px; font-size: 11px; }
+    .topo-node.orphan { border-style: dashed; }
+    .topo-node.current { border-color: var(--accent); box-shadow: 0 0 0 1px rgba(96,165,250,0.3); }
+
+    .file-list { font-family: ui-monospace, "JetBrains Mono", monospace; font-size: 12px; max-height: 220px; overflow: auto; }
+    .file-list .file { padding: 2px 4px; border-radius: 3px; }
+    .file-list .file:hover { background: var(--bg-elev2); }
+
+    .dialog-back { position: fixed; inset: 0; background: rgba(0,0,0,0.55); display: flex; align-items: center; justify-content: center; z-index: 50; }
+    .dialog { background: var(--bg-elev); border: 1px solid var(--border); border-radius: 8px; padding: 16px; min-width: 360px; max-width: 520px; }
+    .dialog h3 { margin: 0 0 8px; font-size: 14px; }
+    .dialog p { margin: 0 0 12px; color: var(--fg-mute); font-size: 12px; line-height: 1.5; }
+    .dialog .actions { display: flex; gap: 8px; justify-content: flex-end; }
+
+    .toast { position: fixed; right: 12px; bottom: 12px; padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg-elev2); font-size: 12px; max-width: 360px; z-index: 60; }
+    .toast.ok { border-color: rgba(52,211,153,0.4); }
+    .toast.err { border-color: rgba(248,113,113,0.4); color: var(--red); }
+
+    .empty { color: var(--fg-mute); font-style: italic; font-size: 12px; }
+
+    .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border-soft); margin-bottom: 10px; }
+    .tab { padding: 6px 10px; cursor: pointer; border-bottom: 2px solid transparent; color: var(--fg-mute); font-size: 12px; }
+    .tab.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
+
+    details summary { cursor: pointer; color: var(--fg-mute); font-size: 12px; padding: 4px 0; }
+    details summary:hover { color: var(--accent); }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <h1>Git Workspace Map</h1>
+    <span id="context-pill" class="pill muted">resolving context…</span>
+    <span class="spacer"></span>
+    <button id="refresh-btn" class="ghost" title="Refresh">↻ Refresh</button>
+    <button id="fetch-btn" class="ghost" title="git fetch --all --prune">⇣ Fetch all</button>
+  </div>
+
+  <main>
+    <section class="card" id="repo-card">
+      <h2>Topology</h2>
+      <div id="topology" class="topology">
+        <div class="empty">Loading…</div>
+      </div>
+    </section>
+
+    <section class="card" id="status-card">
+      <h2>Status</h2>
+      <div class="kv">
+        <div class="k">Branch</div><div class="v" id="status-branch">—</div>
+        <div class="k">HEAD</div><div class="v" id="status-head">—</div>
+        <div class="k">Upstream</div><div class="v" id="status-upstream">—</div>
+        <div class="k">Ahead/Behind</div><div class="v" id="status-aheadbehind">—</div>
+        <div class="k">Working tree</div><div class="v" id="status-dirty">—</div>
+      </div>
+      <details style="margin-top: 8px;">
+        <summary>Modified files (<span id="status-files-count">0</span>)</summary>
+        <div class="file-list" id="status-files"><div class="empty">none</div></div>
+      </details>
+    </section>
+
+    <section class="card">
+      <h2>Branches</h2>
+      <div class="row" style="margin-bottom: 8px;">
+        <input id="new-branch-name" placeholder="new-branch-name" />
+        <button id="new-branch-btn" class="primary">Create &amp; checkout</button>
+      </div>
+      <ul class="list" id="branches-list"><li class="empty">Loading…</li></ul>
+    </section>
+
+    <section class="card">
+      <h2>Workspaces</h2>
+      <p class="empty" style="margin-top: 0;">Workspaces of the active project. Use REST to create/switch/delete — the host keeps the session tree in sync.</p>
+      <div class="row" style="margin-bottom: 8px;">
+        <input id="new-ws-name" placeholder="workspace name" />
+        <input id="new-ws-branch" placeholder="branch (optional)" />
+        <button id="new-ws-btn" class="primary">Create / switch</button>
+      </div>
+      <ul class="list" id="workspaces-list"><li class="empty">Loading…</li></ul>
+      <details style="margin-top: 8px;">
+        <summary>Sessions sharing workspaces</summary>
+        <ul class="list" id="sessions-list"><li class="empty">Loading…</li></ul>
+      </details>
+    </section>
+
+    <section class="card">
+      <h2>Remotes</h2>
+      <div class="row" style="margin-bottom: 8px;">
+        <select id="remote-select"><option value="">all remotes</option></select>
+        <button id="fetch-remote-btn">⇣ Fetch</button>
+      </div>
+      <ul class="list" id="remotes-list"><li class="empty">Loading…</li></ul>
+    </section>
+  </main>
+
+  <div id="dialog-host"></div>
+  <div id="toast-host"></div>
+
+  <script type="module">
+    /* ===========================================================
+     * Git Workspace Map — iframe panel
+     * Talks to the host exclusively through Plugin RPC. The host
+     * supports token-in-query on assets, so we can use fetch().
+     * =========================================================== */
+
+    const PLUGIN_ID = 'openfox-git-workspace-map'
+    const params = new URLSearchParams(window.location.search)
+    const TOKEN = params.get('token') || ''
+    const HOST_BASE = window.location.origin
+
+    /* ---------- Tiny helpers ---------- */
+
+    const $ = (sel) => document.querySelector(sel)
+    const escape = (s) => String(s == null ? '' : s).replace(/[<>&"']/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;', "'": '&#39;' }[c]))
+
+    function showToast(message, kind) {
+      const t = document.createElement('div')
+      t.className = 'toast ' + (kind === 'error' ? 'err' : 'ok')
+      t.textContent = message
+      $('#toast-host').appendChild(t)
+      setTimeout(() => { t.remove() }, 5000)
+    }
+
+    function confirmDialog({ title, body, confirmLabel = 'Confirm', danger = false }) {
+      return new Promise((resolve) => {
+        const back = document.createElement('div')
+        back.className = 'dialog-back'
+        back.innerHTML = `
+          <div class="dialog" role="dialog" aria-modal="true">
+            <h3>${escape(title)}</h3>
+            <p>${escape(body)}</p>
+            <div class="actions">
+              <button class="ghost" data-act="cancel">Cancel</button>
+              <button class="${danger ? 'danger' : 'primary'}" data-act="ok">${escape(confirmLabel)}</button>
+            </div>
+          </div>`
+        $('#dialog-host').appendChild(back)
+        const close = (ok) => { back.remove(); resolve(ok) }
+        back.addEventListener('click', (e) => {
+          const act = e.target.dataset.act
+          if (act === 'cancel') close(false)
+          if (act === 'ok') close(true)
+          if (e.target === back) close(false)
+        })
+      })
+    }
+
+    /* ---------- RPC ---------- */
+
+    async function rpc(method, payload = {}) {
+      const url = new URL(`/api/plugins/${encodeURIComponent(PLUGIN_ID)}/rpc/${encodeURIComponent(method)}`, HOST_BASE)
+      if (TOKEN) url.searchParams.set('token', TOKEN)
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ params: payload }),
+      })
+      let body = {}
+      try { body = await res.json() } catch (_e) { /* ignore */ }
+      if (!res.ok) throw new Error(body.error || `RPC ${method} failed (${res.status})`)
+      return body.result
+    }
+
+    /* ---------- State ---------- */
+
+    const state = {
+      context: null,
+      repo: null,
+    }
+
+    /* ---------- Renderers ---------- */
+
+    function renderContextPill(ctx) {
+      const pill = $('#context-pill')
+      if (!ctx || !ctx.workdir) {
+        pill.textContent = 'no context'
+        pill.className = 'pill bad'
+        return
+      }
+      pill.textContent = ctx.sessionId ? `session ${ctx.sessionId.slice(0, 8)}` : ctx.workdir
+      pill.className = 'pill ok'
+    }
+
+    function renderTopology(repo) {
+      const container = $('#topology')
+      container.innerHTML = ''
+      if (!repo) {
+        container.innerHTML = '<div class="empty">No repo state loaded.</div>'
+        return
+      }
+      if (!repo.isRepository) {
+        container.innerHTML = '<div class="empty">Not a git repository: ' + escape(repo.cwd || '') + '</div>'
+        return
+      }
+
+      const node = (label, value, opts = {}) => {
+        const div = document.createElement('div')
+        div.className = 'topo-node' + (opts.current ? ' current' : '') + (opts.orphan ? ' orphan' : '')
+        div.innerHTML = `<div class="label">${escape(label)}</div><div class="value">${escape(value || '—')}</div>`
+        return div
+      }
+      const arrow = (txt) => {
+        const d = document.createElement('div')
+        d.className = 'topo-arrow'
+        d.textContent = txt
+        return d
+      }
+
+      // Upstream (commonDir) → Workspace (effective workdir) → Branch → Tracking remote
+      container.appendChild(node('Upstream (.git common dir)', repo.commonDir || repo.toplevel, { current: true }))
+      container.appendChild(arrow('⬇ shared with'))
+      container.appendChild(node('Workspace (effective workdir)', repo.toplevel, { current: true }))
+      if (repo.commonDir && repo.commonDir !== repo.toplevel) {
+        container.appendChild(arrow('⬇ worktree anchored at'))
+      }
+      container.appendChild(arrow('⬇ HEAD on'))
+      container.appendChild(node('Branch', repo.branch ? `${repo.branch} @ ${repo.headSha}` : `(detached @ ${repo.headSha})`, { current: true }))
+      if (repo.upstream) {
+        container.appendChild(arrow('⬇ tracking'))
+        container.appendChild(node('Tracking', repo.upstream))
+        // Find which remote owns the upstream
+        const upstreamRemote = repo.upstream.split('/')[0]
+        const remote = repo.remotes.find((r) => r.name === upstreamRemote)
+        container.appendChild(arrow('⬇ origin'))
+        container.appendChild(node('Origin', remote ? `${remote.name} (${remote.fetchUrl})` : upstreamRemote))
+      } else if (repo.remotes.length > 0) {
+        container.appendChild(arrow('⬇ remotes'))
+        for (const r of repo.remotes) {
+          container.appendChild(node(`Remote ${r.name}`, r.fetchUrl || r.pushUrl || ''))
+        }
+      }
+    }
+
+    function renderStatus(repo) {
+      $('#status-branch').textContent = repo.branch || '(detached)'
+      $('#status-head').textContent = repo.headSha || '—'
+      $('#status-upstream').textContent = repo.upstream || '(none configured)'
+      $('#status-aheadbehind').textContent = `↑${repo.ahead}  ↓${repo.behind}`
+      const dirty = repo.dirty
+      const dirtyEl = $('#status-dirty')
+      dirtyEl.innerHTML = ''
+      const pill = document.createElement('span')
+      pill.className = 'pill ' + (dirty.clean ? 'ok' : 'warn')
+      pill.textContent = dirty.clean ? 'clean' : `${dirty.modified} modified`
+      dirtyEl.appendChild(pill)
+      const filesEl = $('#status-files')
+      filesEl.innerHTML = ''
+      if (dirty.clean) {
+        filesEl.innerHTML = '<div class="empty">none</div>'
+      } else {
+        for (const f of dirty.files) {
+          const div = document.createElement('div')
+          div.className = 'file'
+          div.textContent = f
+          filesEl.appendChild(div)
+        }
+      }
+      $('#status-files-count').textContent = String(dirty.modified || 0)
+    }
+
+    function renderBranches(repo, branchesResult) {
+      const list = $('#branches-list')
+      list.innerHTML = ''
+      if (!branchesResult || !branchesResult.branches || branchesResult.branches.length === 0) {
+        list.innerHTML = '<li class="empty">No branches.</li>'
+        return
+      }
+      for (const b of branchesResult.branches) {
+        const li = document.createElement('li')
+        const name = document.createElement('span')
+        name.className = 'name'
+        name.textContent = (b.current ? '★ ' : '  ') + b.name
+        li.appendChild(name)
+        if (b.upstream) {
+          const meta = document.createElement('span')
+          meta.className = 'meta'
+          meta.textContent = b.upstream
+          li.appendChild(meta)
+        }
+        const spacer = document.createElement('span')
+        spacer.style.flex = '1'
+        li.appendChild(spacer)
+        const sw = document.createElement('button')
+        sw.textContent = 'checkout'
+        sw.disabled = b.current
+        sw.addEventListener('click', async () => {
+          try {
+            await rpc('checkoutBranch', { branch: b.name })
+            showToast(`Checked out ${b.name}`)
+            await refresh()
+          } catch (e) { showToast(e.message, 'error') }
+        })
+        li.appendChild(sw)
+        list.appendChild(li)
+      }
+    }
+
+    function renderWorkspaces(wsResult, sessionsResult) {
+      const list = $('#workspaces-list')
+      list.innerHTML = ''
+      const ws = (wsResult && wsResult.workspaces) || []
+      if (ws.length === 0) {
+        list.innerHTML = '<li class="empty">No workspaces configured. Type a name above to create one.</li>'
+      }
+      // Always prepend the "main" / original workspace.
+      const mainLi = document.createElement('li')
+      const mainName = document.createElement('span')
+      mainName.className = 'name'
+      mainName.textContent = '★ original'
+      mainLi.appendChild(mainName)
+      const mainMeta = document.createElement('span')
+      mainMeta.className = 'meta'
+      mainMeta.textContent = 'main repo'
+      mainLi.appendChild(mainMeta)
+      const spacer = document.createElement('span')
+      spacer.style.flex = '1'
+      mainLi.appendChild(spacer)
+      const mainBtn = document.createElement('button')
+      mainBtn.textContent = 'switch'
+      mainBtn.addEventListener('click', async () => {
+        try {
+          await rpc('switchWorkspace', { target: 'original' })
+          showToast('Switched to original workspace')
+          await refresh()
+        } catch (e) { showToast(e.message, 'error') }
+      })
+      mainLi.appendChild(mainBtn)
+      list.appendChild(mainLi)
+
+      for (const w of ws) {
+        const li = document.createElement('li')
+        const name = document.createElement('span')
+        name.className = 'name'
+        name.textContent = w.name || (w.path || '').split('/').slice(-1)[0] || '(unnamed)'
+        li.appendChild(name)
+        if (w.path) {
+          const meta = document.createElement('span')
+          meta.className = 'meta'
+          meta.textContent = w.path
+          li.appendChild(meta)
+        }
+        const sp = document.createElement('span')
+        sp.style.flex = '1'
+        li.appendChild(sp)
+        const sw = document.createElement('button')
+        sw.textContent = 'switch'
+        sw.addEventListener('click', async () => {
+          try {
+            await rpc('switchWorkspace', { target: w.name })
+            showToast(`Switched to ${w.name}`)
+            await refresh()
+          } catch (e) { showToast(e.message, 'error') }
+        })
+        li.appendChild(sw)
+        const del = document.createElement('button')
+        del.className = 'danger'
+        del.textContent = 'delete'
+        del.addEventListener('click', async () => {
+          const ok = await confirmDialog({
+            title: `Delete workspace "${w.name}"?`,
+            body: 'The workspace directory and its branch will be removed. The active session will be moved back to the main repo.',
+            confirmLabel: 'Delete',
+            danger: true,
+          })
+          if (!ok) return
+          try {
+            await rpc('deleteWorkspace', { target: w.name, force: false })
+            showToast(`Deleted ${w.name}`)
+            await refresh()
+          } catch (e) {
+            const msg = e.message || ''
+            if (/in use/i.test(msg)) {
+              const force = await confirmDialog({
+                title: `Workspace "${w.name}" is in use`,
+                body: `One or more sessions are still using this workspace. Force-delete anyway?${formatConflictingSessions(sessionsResult)}`,
+                confirmLabel: 'Force delete',
+                danger: true,
+              })
+              if (!force) return
+              try {
+                await rpc('deleteWorkspace', { target: w.name, force: true })
+                showToast(`Force-deleted ${w.name}`)
+                await refresh()
+              } catch (e2) { showToast(e2.message, 'error') }
+            } else {
+              showToast(msg, 'error')
+            }
+          }
+        })
+        li.appendChild(del)
+        list.appendChild(li)
+      }
+
+      // Sessions list
+      const sessList = $('#sessions-list')
+      sessList.innerHTML = ''
+      const sessions = (sessionsResult && sessionsResult.sessions) || []
+      if (sessions.length === 0) {
+        sessList.innerHTML = '<li class="empty">No sessions visible.</li>'
+      }
+      for (const s of sessions.slice(0, 25)) {
+        const li = document.createElement('li')
+        const name = document.createElement('span')
+        name.className = 'name'
+        name.textContent = (s.title || s.id || '').slice(0, 40)
+        li.appendChild(name)
+        const meta = document.createElement('span')
+        meta.className = 'meta'
+        meta.textContent = [s.workspace, s.branch].filter(Boolean).join(' · ')
+        li.appendChild(meta)
+        sessList.appendChild(li)
+      }
+    }
+
+    function formatConflictingSessions(sessionsResult) {
+      if (!sessionsResult || !sessionsResult.sessions) return ''
+      return ''
+    }
+
+    function renderRemotes(repo) {
+      const list = $('#remotes-list')
+      list.innerHTML = ''
+      const select = $('#remote-select')
+      select.innerHTML = '<option value="">all remotes</option>'
+      if (!repo.remotes || repo.remotes.length === 0) {
+        list.innerHTML = '<li class="empty">No remotes configured.</li>'
+        return
+      }
+      for (const r of repo.remotes) {
+        const li = document.createElement('li')
+        const name = document.createElement('span')
+        name.className = 'name'
+        name.textContent = r.name
+        li.appendChild(name)
+        const meta = document.createElement('span')
+        meta.className = 'meta'
+        meta.textContent = (r.fetchUrl || '') + (r.pushUrl && r.pushUrl !== r.fetchUrl ? ` (push: ${r.pushUrl})` : '')
+        li.appendChild(meta)
+        list.appendChild(li)
+        const opt = document.createElement('option')
+        opt.value = r.name
+        opt.textContent = r.name
+        select.appendChild(opt)
+      }
+    }
+
+    /* ---------- Refresh ---------- */
+
+    let refreshToken = 0
+    async function refresh() {
+      const my = ++refreshToken
+      try {
+        const ctx = await rpc('resolveContext')
+        if (my !== refreshToken) return
+        state.context = ctx
+        renderContextPill(ctx)
+        if (!ctx.workdir) {
+          $('#topology').innerHTML = '<div class="empty">No active workdir.</div>'
+          return
+        }
+        const obs = await rpc('observe')
+        if (my !== refreshToken) return
+        if (!obs || !obs.ok) {
+          $('#topology').innerHTML = '<div class="empty">' + escape(obs?.error || 'observe failed') + '</div>'
+          return
+        }
+        state.repo = obs.repo
+        renderTopology(obs.repo)
+        renderStatus(obs.repo)
+        renderRemotes(obs.repo)
+        if (ctx.sessionId) {
+          const [br, ws, sess] = await Promise.all([
+            rpc('listBranches').catch((e) => ({ error: e.message })),
+            rpc('listWorkspaces').catch((e) => ({ error: e.message })),
+            rpc('listSessions').catch((e) => ({ error: e.message })),
+          ])
+          if (my !== refreshToken) return
+          renderBranches(obs.repo, br)
+          renderWorkspaces(ws, sess)
+        } else {
+          renderBranches(obs.repo, { branches: obs.repo.branches })
+          $('#workspaces-list').innerHTML = '<li class="empty">No session — branch list and topology only.</li>'
+          $('#sessions-list').innerHTML = '<li class="empty">No session.</li>'
+        }
+      } catch (e) {
+        showToast(e.message || String(e), 'error')
+      }
+    }
+
+    /* ---------- Event wiring ---------- */
+
+    $('#refresh-btn').addEventListener('click', refresh)
+    $('#fetch-btn').addEventListener('click', async () => {
+      try { await rpc('fetch'); showToast('Fetched all remotes'); await refresh() }
+      catch (e) { showToast(e.message, 'error') }
+    })
+    $('#fetch-remote-btn').addEventListener('click', async () => {
+      const remote = $('#remote-select').value
+      try { await rpc('fetch', remote ? { remote } : {}); showToast('Fetch OK'); await refresh() }
+      catch (e) { showToast(e.message, 'error') }
+    })
+    $('#new-branch-btn').addEventListener('click', async () => {
+      const name = $('#new-branch-name').value.trim()
+      if (!name) return
+      try { await rpc('createBranch', { name }); showToast(`Created ${name}`); $('#new-branch-name').value = ''; await refresh() }
+      catch (e) { showToast(e.message, 'error') }
+    })
+    $('#new-ws-btn').addEventListener('click', async () => {
+      const target = $('#new-ws-name').value.trim()
+      const branch = $('#new-ws-branch').value.trim()
+      if (!target) return
+      try {
+        await rpc('switchWorkspace', { target, ...(branch ? { branch } : {}) })
+        showToast(`Workspace ${target} ready`)
+        $('#new-ws-name').value = ''
+        $('#new-ws-branch').value = ''
+        await refresh()
+      } catch (e) { showToast(e.message, 'error') }
+    })
+
+    /* ---------- Boot ---------- */
+
+    refresh().catch((e) => showToast(e.message, 'error'))
+    // Auto-refresh every 15s so badge/branch switches from elsewhere are visible.
+    setInterval(refresh, 15000)
+  </script>
+</body>
+</html>
