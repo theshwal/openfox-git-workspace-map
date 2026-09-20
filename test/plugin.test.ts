@@ -12,12 +12,19 @@ function makeStorage() {
 
 function makeRegistry() {
   const rpcs = new Map<string, (params: unknown, ctx: unknown) => Promise<unknown>>()
-  const registrations = { tools: 0, actions: 0, badges: 0, panels: 0, assets: [] as string[], hooks: [] as string[] }
+  const registrations = {
+    tools: 0,
+    actions: [] as Array<Record<string, unknown>>,
+    badges: [] as Array<Record<string, unknown>>,
+    panels: 0,
+    assets: [] as string[],
+    hooks: [] as string[],
+  }
   const registry = {
     context: { storage: makeStorage(), logger: { debug: vi.fn() } },
     registerTool: vi.fn(() => { registrations.tools++ }),
-    registerUiAction: vi.fn(() => { registrations.actions++ }),
-    registerUiBadge: vi.fn(() => { registrations.badges++ }),
+    registerUiAction: vi.fn((value: Record<string, unknown>) => { registrations.actions.push(value) }),
+    registerUiBadge: vi.fn((value: Record<string, unknown>) => { registrations.badges.push(value) }),
     registerUiPanel: vi.fn(() => { registrations.panels++ }),
     registerRpc: vi.fn((name: string, fn: (params: unknown, ctx: unknown) => Promise<unknown>) => rpcs.set(name, fn)),
     registerAsset: vi.fn((path: string) => registrations.assets.push(path)),
@@ -31,8 +38,10 @@ describe('TypeScript plugin contract', () => {
   it('registers OpenFox v2 surfaces', () => {
     const value = makeRegistry()
     expect(value.registrations.tools).toBe(1)
-    expect(value.registrations.actions).toBe(1)
-    expect(value.registrations.badges).toBe(1)
+    expect(value.registrations.actions).toHaveLength(1)
+    expect(value.registrations.actions[0]?.slot).toBe('composer.actions')
+    expect(value.registrations.badges).toHaveLength(1)
+    expect(value.registrations.badges[0]?.slot).toBe('session.row.badges')
     expect(value.registrations.panels).toBe(1)
     expect(value.registrations.assets).toEqual(['dist/ui/git-workspace.html'])
     expect(value.registrations.hooks).toEqual(expect.arrayContaining(['session.created', 'turn.completed']))
@@ -43,11 +52,19 @@ describe('TypeScript plugin contract', () => {
     ]))
   })
 
-  it('prefers live context over cached context', () => {
+  it('prefers live context over matching cached context', () => {
     const storage = makeStorage()
-    writeLastContext(storage, { sessionId: 'old', workdir: '/old', projectId: 'p1' })
-    expect(resolveContext({ sessionId: 'new', workdir: '/new' }, storage)).toEqual({
-      sessionId: 'new', workdir: '/new', projectId: 'p1'
+    writeLastContext(storage, { sessionId: 'same', workdir: '/old', projectId: 'p1' })
+    expect(resolveContext({ sessionId: 'same', workdir: '/new' }, storage)).toEqual({
+      sessionId: 'same', workdir: '/new', projectId: 'p1'
+    })
+  })
+
+  it('never leaks a cached workdir into another session', () => {
+    const storage = makeStorage()
+    writeLastContext(storage, { sessionId: 'old-session', workdir: '/wrong/repo', projectId: 'p1' })
+    expect(resolveContext({ sessionId: 'new-session', projectId: 'p2' }, storage)).toEqual({
+      sessionId: 'new-session', workdir: '', projectId: 'p2'
     })
   })
 
