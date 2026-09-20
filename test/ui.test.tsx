@@ -1,6 +1,11 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { App } from '../src/ui'
+
+afterEach(() => {
+  cleanup()
+  vi.unstubAllGlobals()
+})
 
 const context = { sessionId: 'session-12345678', workdir: '/repo', projectId: 'project-1' }
 const repo = {
