@@ -8,10 +8,10 @@
   "scripts": {
     "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\"",
     "typecheck": "tsc --noEmit",
-    "build:server": "tsup src/plugin.ts --format esm --dts --out-dir dist/server --clean false",
+    "build:server": "tsup src/plugin.ts --format esm --dts --out-dir dist/server",
     "build:ui": "vite build",
     "build": "npm run clean && npm run build:server && npm run build:ui",
-    "test": "vitest run",
+    "test": "vitest run --config vitest.config.ts",
     "verify": "npm run typecheck && npm test && npm run build"
   },
   "openfox": {
@@ -24,6 +24,15 @@
   },
   "license": "MIT",
   "engines": {"node": ">=20"},
+  "dependencies": {
+    "@vitejs/plugin-react": "^4.3.4",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "tsup": "^8.5.0",
+    "typescript": "^5.8.2",
+    "vite": "^6.1.0",
+    "vite-plugin-singlefile": "^2.2.0"
+  },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
@@ -31,14 +40,7 @@
     "@types/node": "^22.19.15",
     "@types/react": "^19.0.8",
     "@types/react-dom": "^19.0.3",
-    "@vitejs/plugin-react": "^4.3.4",
     "jsdom": "^29.1.1",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
-    "tsup": "^8.5.0",
-    "typescript": "^5.8.2",
-    "vite": "^6.1.0",
-    "vite-plugin-singlefile": "^2.2.0",
     "vitest": "^4.1.2"
   }
 }

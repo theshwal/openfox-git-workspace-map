@@ -1,0 +1,28 @@
+name: CI
+on:
+  push:
+    branches: [main, refactor/typescript-react]
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm install --no-audit --no-fund
+      - run: npm run verify
+      - name: Verify OpenFox install artifacts
+        run: |
+          test -f dist/server/plugin.js
+          test -f dist/server/plugin.d.ts
+          test -f dist/ui/git-workspace.html
+          grep -q '<script' dist/ui/git-workspace.html
+          if grep -q 'src="/assets/' dist/ui/git-workspace.html; then
+            echo "UI is not single-file"
+            exit 1
+          fi

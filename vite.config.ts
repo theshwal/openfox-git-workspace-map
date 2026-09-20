@@ -12,5 +12,4 @@ export default defineConfig({
     emptyOutDir: false,
     rollupOptions: { input: resolve(process.cwd(), 'src/git-workspace.html') },
   },
-  test: { environment: 'jsdom', setupFiles: ['./test/setup.ts'] },
 })
