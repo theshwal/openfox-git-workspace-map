@@ -13,14 +13,64 @@ type Snapshot={context:Context;repo:Repo|null;branches:Branch[];workspaces:Works
 
 const PLUGIN_ID='openfox-git-workspace-map'
 const TOKEN=new URLSearchParams(location.search).get('token')??''
-export async function rpc<T>(method:string,params:Record<string,unknown>={}):Promise<T>{
-  const url=new URL(`/api/plugins/${encodeURIComponent(PLUGIN_ID)}/rpc/${encodeURIComponent(method)}`,location.origin);if(TOKEN)url.searchParams.set('token',TOKEN)
-  const response=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({params})});const body=await response.json().catch(()=>({})) as {result?:T;error?:string};if(!response.ok)throw new Error(body.error||`RPC ${method} failed (${response.status})`);return body.result as T
+let activeContext:Context|null=null
+
+export function sessionIdFromReferrer(referrer:string):string|null{
+  if(!referrer)return null
+  try{
+    const url=new URL(referrer,location.origin)
+    const match=url.pathname.match(/\/p\/[^/]+\/s\/([^/?#]+)/)
+    return match?.[1]?decodeURIComponent(match[1]):null
+  }catch{return null}
 }
+
+async function sessionContextFromReferrer():Promise<Context|null>{
+  const sessionId=sessionIdFromReferrer(document.referrer)
+  if(!sessionId)return null
+  const url=new URL(`/api/sessions/${encodeURIComponent(sessionId)}`,location.origin)
+  if(TOKEN)url.searchParams.set('token',TOKEN)
+  const headers:Record<string,string>={Accept:'application/json'}
+  if(TOKEN)headers['x-session-token']=TOKEN
+  const response=await fetch(url,{headers})
+  if(!response.ok)return null
+  const body=await response.json() as {session?:{id?:string;projectId?:string;workdir?:string;workspace?:string|null}}
+  const session=body.session
+  const workdir=(session?.workspace||session?.workdir||'').trim()
+  if(!session?.id||!workdir)return null
+  return{sessionId:session.id,workdir,...(session.projectId?{projectId:session.projectId}:{})}
+}
+
+export async function rpc<T>(method:string,params:Record<string,unknown>={},context:Context|null=activeContext):Promise<T>{
+  const url=new URL(`/api/plugins/${encodeURIComponent(PLUGIN_ID)}/rpc/${encodeURIComponent(method)}`,location.origin)
+  if(TOKEN)url.searchParams.set('token',TOKEN)
+  const headers:Record<string,string>={'Content-Type':'application/json'}
+  if(TOKEN)headers['x-session-token']=TOKEN
+  const payload={params,...(context?.sessionId?{sessionId:context.sessionId}:{}),...(context?.workdir?{workdir:context.workdir}:{}),...(context?.projectId?{projectId:context.projectId}:{})}
+  const response=await fetch(url,{method:'POST',headers,body:JSON.stringify(payload)})
+  const body=await response.json().catch(()=>({})) as {result?:T;error?:string}
+  if(!response.ok)throw new Error(body.error||`RPC ${method} failed (${response.status})`)
+  return body.result as T
+}
+
+export async function resolvePanelContext():Promise<Context>{
+  const fromSession=await sessionContextFromReferrer().catch(()=>null)
+  if(fromSession){activeContext=fromSession;return fromSession}
+  const fallback=await rpc<Context>('resolveContext',{},null)
+  activeContext=fallback
+  return fallback
+}
+
 export async function loadSnapshot():Promise<Snapshot>{
-  const context=await rpc<Context>('resolveContext');const observed=await rpc<{ok:boolean;repo?:Repo;error?:string}>('observe');const repo=observed.ok?observed.repo??null:null
+  const context=await resolvePanelContext()
+  activeContext=context
+  const observed=await rpc<{ok:boolean;repo?:Repo;error?:string}>('observe',{},context)
+  const repo=observed.ok?observed.repo??null:null
   if(!context.sessionId)return{context,repo,branches:repo?.branches??[],workspaces:[],sessions:[],error:observed.error}
-  const [br,ws,sess]=await Promise.all([rpc<{branches?:Branch[]}>('listBranches').catch(()=>({branches:[]})),rpc<{workspaces?:Workspace[]}>('listWorkspaces').catch(()=>({workspaces:[]})),rpc<{sessions?:Session[]}>('listSessions').catch(()=>({sessions:[]}))])
+  const [br,ws,sess]=await Promise.all([
+    rpc<{branches?:Branch[]}>('listBranches',{},context).catch(()=>({branches:[]})),
+    rpc<{workspaces?:Workspace[]}>('listWorkspaces',{},context).catch(()=>({workspaces:[]})),
+    rpc<{sessions?:Session[]}>('listSessions',{},context).catch(()=>({sessions:[]}))
+  ])
   return{context,repo,branches:br.branches??repo?.branches??[],workspaces:ws.workspaces??[],sessions:sess.sessions??[],error:observed.error}
 }
 
