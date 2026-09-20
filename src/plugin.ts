@@ -90,8 +90,34 @@ export function readLastContext(storage: StorageLike): ActiveContext | null {
 }
 export function writeLastContext(storage: StorageLike, value: ActiveContext): void { try { storage.set(STORAGE_LAST_CONTEXT, JSON.stringify(value)) } catch { /* ignore */ } }
 export function resolveContext(live: RpcContext | undefined, storage: StorageLike): ActiveContext {
-  const cached = readLastContext(storage); const projectId = live?.projectId ?? cached?.projectId
-  return { sessionId: live?.sessionId ?? cached?.sessionId ?? '', workdir: live?.workdir ?? cached?.workdir ?? process.cwd(), ...(projectId ? { projectId } : {}) }
+  const cached = readLastContext(storage)
+  const liveSessionId = live?.sessionId ?? ''
+  const matchingCached = !liveSessionId || cached?.sessionId === liveSessionId ? cached : null
+  const projectId = live?.projectId ?? matchingCached?.projectId
+  return {
+    sessionId: liveSessionId || matchingCached?.sessionId || '',
+    workdir: live?.workdir ?? matchingCached?.workdir ?? '',
+    ...(projectId ? { projectId } : {}),
+  }
+}
+
+async function hydrateSessionContext(context: ActiveContext): Promise<ActiveContext> {
+  if (context.workdir || !context.sessionId) return context
+  try {
+    const body = record(await httpJSON(`/api/sessions/${encodeURIComponent(context.sessionId)}`))
+    const session = record(body.session)
+    const workspace = typeof session.workspace === 'string' ? session.workspace.trim() : ''
+    const workdir = typeof session.workdir === 'string' ? session.workdir.trim() : ''
+    const projectId = typeof session.projectId === 'string' ? session.projectId : context.projectId
+    if (!workspace && !workdir) return context
+    return {
+      sessionId: context.sessionId,
+      workdir: workspace || workdir,
+      ...(projectId ? { projectId } : {}),
+    }
+  } catch {
+    return context
+  }
 }
 function record(value: unknown): Record<string,unknown> { return value && typeof value === 'object' ? value as Record<string,unknown> : {} }
 function required(value: unknown, label: string): string { if (typeof value !== 'string' || !value.trim()) throw new Error(`${label} is required.`); return value.trim() }
@@ -100,13 +126,33 @@ function badgeDelta(ahead=0, behind=0): string { return `${ahead>0?` ↑${ahead}
 export function register(registry: RegistryLike): void {
   const storage = registry.context.storage
   const mirror = (ctx?: RpcContext) => { if (!ctx?.workdir && !ctx?.sessionId) return; writeLastContext(storage,{ sessionId:ctx.sessionId??'', workdir:ctx.workdir??process.cwd(), ...(ctx.projectId?{projectId:ctx.projectId}:{}) }) }
-  const wrap = (fn: (params: Record<string,unknown>, ctx: ActiveContext) => Promise<unknown>) => async (params: unknown, live: RpcContext) => { mirror(live); return fn(record(params), resolveContext(live,storage)) }
+  const wrap = (fn: (params: Record<string,unknown>, ctx: ActiveContext) => Promise<unknown>) => async (params: unknown, live: RpcContext) => {
+    const resolved = await hydrateSessionContext(resolveContext(live, storage))
+    const context = resolved.workdir ? resolved : { ...resolved, workdir: process.cwd() }
+    mirror(context)
+    return fn(record(params), context)
+  }
 
   registry.registerTool({ name:'git_workspace_inspect', description:'Read-only Git workspace inspection for the active session.', parameters:{type:'object',properties:{includeFiles:{type:'boolean'}}}, execute:async(args:Record<string,unknown>,ctx:RpcContext)=>{
     const result=await observe(ctx.workdir||process.cwd()); if(!result.ok)return{success:false,error:result.error}; const r=result.value;if(!r.isRepository)return{success:true,output:'Not a git repository.'}; const d=r.dirty!; const lines=[`Branch: ${r.branch??'(detached)'}${r.upstream?` → ${r.upstream}`:''}`,`HEAD: ${r.headSha??'—'}`,`Ahead/behind: ↑${r.ahead??0} ↓${r.behind??0}`,`Working tree: ${d.clean?'clean':`${d.modified} modified file(s)`}`,`Remotes: ${(r.remotes??[]).map(x=>`${x.name}→${x.fetchUrl}`).join(', ')||'(none)'}`]; if(args.includeFiles===true&&!d.clean)lines.push(`Files: ${d.files.join(', ')}`); return{success:true,output:lines.join('\n')}
   }})
-  registry.registerUiAction({ id:'git-map-open', slot:'session.header.actions', label:{en:'Git Workspace Map',fr:'Carte Git / Workspaces'}, icon:'folder', visibleWhen:{hasSession:true}, onActivate:{kind:'openPanel',panelId:'git-workspace'} })
-  registry.registerUiBadge({ id:'git-map-badge', slot:'session.header.badges', label:{en:'git',fr:'git'}, tone:'info', visibleWhen:{hasSession:true}, source:{kind:'rpc',method:'badge'} })
+  registry.registerUiAction({
+    id:'git-map-open',
+    slot:'composer.actions',
+    label:{en:'Git Workspace Map',fr:'Carte Git / Workspaces'},
+    icon:'folder',
+    tooltip:{en:'Open Git data for this session',fr:'Ouvrir les données Git de cette session'},
+    visibleWhen:{hasSession:true},
+    onActivate:{kind:'openPanel',panelId:'git-workspace'}
+  })
+  registry.registerUiBadge({
+    id:'git-map-badge',
+    slot:'session.row.badges',
+    label:{en:'git',fr:'git'},
+    tone:'info',
+    visibleWhen:{hasSession:true},
+    source:{kind:'rpc',method:'badge'}
+  })
   registry.registerUiPanel({ id:'git-workspace', title:{en:'Git Workspace Map',fr:'Carte Git / Workspaces'}, size:'lg', kind:'iframe', url:'dist/ui/git-workspace.html' })
   registry.registerAsset('dist/ui/git-workspace.html')
 
