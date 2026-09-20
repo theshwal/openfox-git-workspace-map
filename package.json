@@ -1,6 +1,6 @@
 {
   "name": "openfox-git-workspace-map",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "OpenFox Git/workspace topology plugin — TypeScript backend and React panel.",
   "type": "module",
   "main": "./dist/server/plugin.js",
