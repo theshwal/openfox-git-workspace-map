@@ -15,8 +15,8 @@ This matches the OpenFox GitHub installer: after cloning a plugin repository, Op
 
 ## Features
 
-- session-header Git badge;
-- session-header action opening the Git Workspace Map;
+- Git badge on each session row in the sidebar;
+- session-local Git Workspace Map action rendered above the composer;
 - topology from Git common directory to workspace, branch/HEAD and tracking remote;
 - branch, HEAD, dirty/clean, modified files, ahead/behind;
 - fetch/push remote URLs;
@@ -70,7 +70,9 @@ The pipeline runs strict TypeScript checking, backend contract tests, React pane
 
 1.0.0 loaded JavaScript directly and embedded its UI in handwritten HTML/DOM code.
 
-1.1.0 moves source development to TypeScript + React while keeping OpenFox contribution IDs and RPC names stable. No OpenFox core change is required.
+1.1.0 moved source development to TypeScript + React while keeping OpenFox contribution IDs and RPC names stable.
+
+1.2.0 scopes the UI to the active session without any OpenFox core patch: the action is rendered in `composer.actions`, the badge in `session.row.badges`, and the iframe reconstructs the active session from the embedding page before sending explicit `sessionId`, `workdir` and `projectId` with every RPC.
 
 ## License
 
