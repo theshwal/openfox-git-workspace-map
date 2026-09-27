@@ -17,11 +17,47 @@ jobs:
       - run: npm run verify
       - name: Verify OpenFox install artifacts
         run: |
+          set -e
           test -f dist/server/plugin.js
           test -f dist/server/plugin.d.ts
           test -f dist/ui/git-workspace.html
           grep -q '<script' dist/ui/git-workspace.html
-          if grep -q 'src="/assets/' dist/ui/git-workspace.html; then
-            echo "UI is not single-file"
+          if grep -qE 'src="(https?:|//)' dist/ui/git-workspace.html; then
+            echo "UI references external HTTP src — not single-file"
             exit 1
           fi
+          ABS_HITS=$(grep -oE 'src="[^"]*"' dist/ui/git-workspace.html | grep -E 'src="/' | grep -v 'src="data:' || true)
+          if [ -n "$ABS_HITS" ]; then
+            echo "UI references absolute path — not single-file"
+            echo "$ABS_HITS"
+            exit 1
+          fi
+      - name: Source security audit (no eval/Function/innerHTML in our code)
+        run: |
+          set -e
+          if grep -rnE '\beval\(|new Function\(' src/ test/ 2>/dev/null; then
+            echo "Forbidden pattern (eval/new Function) in source"
+            exit 1
+          fi
+          if grep -rnE 'innerHTML\s*=' src/ 2>/dev/null; then
+            echo "Forbidden pattern (innerHTML=) in source"
+            exit 1
+          fi
+          echo "Source audit OK"
+      - name: CSP sanity check
+        run: |
+          set -e
+          if grep -qE 'unsafe-eval|unsafe-inline' dist/server/plugin.js; then
+            echo "Plugin requires unsafe-eval/unsafe-inline"
+            exit 1
+          fi
+          echo "CSP sanity OK"
+      - name: Bundle size guard
+        run: |
+          set -e
+          SIZE=$(stat -c%s dist/ui/git-workspace.html)
+          if [ "$SIZE" -gt 600000 ]; then
+            echo "UI bundle too large: $SIZE bytes"
+            exit 1
+          fi
+          echo "Bundle size: $SIZE bytes"
