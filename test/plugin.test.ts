@@ -21,7 +21,7 @@ function makeRegistry() {
     hooks: [] as string[],
   }
   const registry = {
-    context: { storage: makeStorage(), logger: { debug: vi.fn() } },
+    context: { storage: makeStorage(), logger: { debug: vi.fn(), warn: vi.fn(), error: vi.fn() } },
     registerTool: vi.fn(() => { registrations.tools++ }),
     registerUiAction: vi.fn((value: Record<string, unknown>) => { registrations.actions.push(value) }),
     registerUiBadge: vi.fn((value: Record<string, unknown>) => { registrations.badges.push(value) }),

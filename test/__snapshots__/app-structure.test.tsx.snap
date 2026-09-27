@@ -1,0 +1,397 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`App structure (DEV-40) > renders matching DOM snapshot 1`] = `
+<main
+  class="app"
+>
+  <header>
+    <div>
+      <h1>
+        Git Workspace Map
+      </h1>
+      <p>
+        session session-
+      </p>
+    </div>
+    <div
+      class="row"
+    >
+      <button>
+        Refresh
+      </button>
+      <button>
+        Fetch all + prune
+      </button>
+      <button
+        aria-label="Toggle theme"
+      >
+        Light
+      </button>
+      <select
+        aria-label="Language"
+      >
+        <option
+          value="en"
+        >
+          EN
+        </option>
+        <option
+          value="fr"
+        >
+          FR
+        </option>
+      </select>
+      <button
+        aria-label="Toggle verbose"
+        title="Verbose"
+      >
+        V○
+      </button>
+      <input
+        aria-label="Poll interval (ms)"
+        max="600000"
+        min="2000"
+        step="1000"
+        style="width: 90px;"
+        type="number"
+        value="15000"
+      />
+    </div>
+  </header>
+  <section
+    class="grid"
+  >
+    <article>
+      <h2>
+        Topology
+      </h2>
+      <div
+        class="topology"
+      >
+        <div>
+          <div
+            class="node"
+          >
+            <small>
+              Upstream
+            </small>
+            <strong>
+              /repo/.git
+            </strong>
+          </div>
+        </div>
+        <div>
+          <div
+            class="arrow"
+          >
+            ↓
+          </div>
+          <div
+            class="node"
+          >
+            <small>
+              Workspace
+            </small>
+            <strong>
+              /repo
+            </strong>
+          </div>
+        </div>
+        <div>
+          <div
+            class="arrow"
+          >
+            ↓
+          </div>
+          <div
+            class="node"
+          >
+            <small>
+              Branch
+            </small>
+            <strong>
+              main @ abc1234
+            </strong>
+          </div>
+        </div>
+        <div>
+          <div
+            class="arrow"
+          >
+            ↓
+          </div>
+          <div
+            class="node"
+          >
+            <small>
+              Tracking
+            </small>
+            <strong>
+              origin/main
+            </strong>
+          </div>
+        </div>
+        <div>
+          <div
+            class="arrow"
+          >
+            ↓
+          </div>
+          <div
+            class="node"
+          >
+            <small>
+              Origin
+            </small>
+            <strong>
+              origin (git@example/repo.git)
+            </strong>
+          </div>
+        </div>
+      </div>
+    </article>
+    <article>
+      <h2>
+        Status
+      </h2>
+      <dl>
+        <dt>
+          Branch
+        </dt>
+        <dd>
+          main
+        </dd>
+        <dt>
+          HEAD
+        </dt>
+        <dd
+          class="mono"
+        >
+          abc1234
+        </dd>
+        <dt>
+          Upstream
+        </dt>
+        <dd>
+          origin/main
+        </dd>
+        <dt>
+          Ahead / behind
+        </dt>
+        <dd>
+          ↑
+          0
+           ↓
+          0
+        </dd>
+        <dt>
+          Working tree
+        </dt>
+        <dd>
+          clean
+        </dd>
+      </dl>
+    </article>
+  </section>
+  <article>
+    <h2>
+      Branches
+    </h2>
+    <div
+      class="form"
+    >
+      <input
+        aria-label="New branch"
+        placeholder="feat/my-change"
+        value=""
+      />
+      <input
+        aria-label="Source branch"
+        placeholder="source (optional)"
+        value=""
+      />
+      <button
+        disabled=""
+      >
+        Create & checkout
+      </button>
+    </div>
+    <div
+      class="list"
+    >
+      <div
+        aria-label="Checkout main"
+        class="item"
+        role="button"
+        tabindex="0"
+      >
+        <div>
+          <strong>
+            ★ 
+            main
+          </strong>
+          <small>
+            no upstream
+          </small>
+        </div>
+        <button
+          disabled=""
+        >
+          Checkout
+        </button>
+      </div>
+      <div
+        aria-label="Checkout feat/x"
+        class="item"
+        role="button"
+        tabindex="0"
+      >
+        <div>
+          <strong>
+            feat/x
+          </strong>
+          <small>
+            no upstream
+          </small>
+        </div>
+        <button>
+          Checkout
+        </button>
+      </div>
+    </div>
+  </article>
+  <article>
+    <h2>
+      Workspaces
+    </h2>
+    <div
+      class="form four"
+    >
+      <input
+        aria-label="Workspace name"
+        placeholder="issue-123"
+        value=""
+      />
+      <input
+        aria-label="Workspace branch"
+        placeholder="branch (optional)"
+        value=""
+      />
+      <input
+        aria-label="Workspace source"
+        placeholder="source (optional)"
+        value=""
+      />
+      <button
+        disabled=""
+      >
+        Create / switch
+      </button>
+    </div>
+    <div
+      class="list"
+    >
+      <p
+        class="empty"
+      >
+        No additional workspaces.
+      </p>
+    </div>
+  </article>
+  <section
+    class="grid"
+  >
+    <article>
+      <h2>
+        Remotes
+      </h2>
+      <div
+        class="form two"
+      >
+        <select
+          aria-label="Remote"
+        >
+          <option
+            value=""
+          >
+            all remotes
+          </option>
+          <option>
+            origin
+          </option>
+        </select>
+        <button>
+          Fetch
+        </button>
+      </div>
+      <div
+        class="list"
+      >
+        <div
+          class="item"
+        >
+          <div>
+            <strong>
+              origin
+            </strong>
+            <small
+              class="mono"
+            >
+              git@example/repo.git
+            </small>
+          </div>
+        </div>
+      </div>
+    </article>
+    <article>
+      <h2>
+        Project sessions
+      </h2>
+      <p
+        class="empty"
+      >
+        No sessions.
+      </p>
+    </article>
+  </section>
+  <article>
+    <h2>
+      Recent commits
+    </h2>
+    <p
+      class="empty"
+    >
+      No commits yet
+    </p>
+  </article>
+  <article>
+    <h2>
+      Danger zone
+    </h2>
+    <div
+      class="form two"
+    >
+      <select
+        aria-label="Reset target"
+        id="reset-target"
+      >
+        <option>
+          HEAD
+        </option>
+        <option>
+          HEAD@
+          1
+        </option>
+        <option>
+          origin/main
+        </option>
+      </select>
+      <button
+        class="danger"
+      >
+        Reset hard
+      </button>
+    </div>
+  </article>
+</main>
+`;
