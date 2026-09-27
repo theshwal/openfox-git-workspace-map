@@ -13,8 +13,8 @@ vi.stubGlobal('fetch', vi.fn(async (input: string | URL) => {
   }
   const method = decodeURIComponent((url.split('/rpc/')[1] || '').split('?')[0])
   const data: Record<string, unknown> = { ok: true }
-  if (method === 'resolveContext') data.context = { sessionId: 'session-12345678', workdir: '/repo', projectId: 'project-1' }
-  if (method === 'observe') {
+  if (method === 'gitWorkspace.resolveContext') data.context = { sessionId: 'session-12345678', workdir: '/repo', projectId: 'project-1' }
+  if (method === 'gitWorkspace.observe') {
     data.repo = {
       isRepository: true, cwd: '/repo', toplevel: '/repo', commonDir: '/repo/.git',
       branch: 'main', headSha: 'abc1234', upstream: 'origin/main', ahead: 0, behind: 0,
@@ -24,10 +24,10 @@ vi.stubGlobal('fetch', vi.fn(async (input: string | URL) => {
       inProgress: { merge: false, rebase: false, cherryPick: false, revert: false, bisect: false },
     }
   }
-  if (method === 'listBranches') data.branches = [{ name: 'main', current: true }, { name: 'feat/x', current: false }]
-  if (method === 'listWorkspaces') data.workspaces = []
-  if (method === 'listSessions') data.sessions = []
-  if (method === 'logRecent') return new Response(JSON.stringify({ result: [] }), { status: 200 })
+  if (method === 'gitWorkspace.listBranches') data.branches = [{ name: 'main', current: true }, { name: 'feat/x', current: false }]
+  if (method === 'gitWorkspace.listWorkspaces') data.workspaces = []
+  if (method === 'gitWorkspace.listSessions') data.sessions = []
+  if (method === 'gitWorkspace.logRecent') return new Response(JSON.stringify({ result: [] }), { status: 200 })
   return new Response(JSON.stringify({ result: data }), { status: 200 })
 }))
 

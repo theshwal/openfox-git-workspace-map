@@ -2,6 +2,13 @@
 
 A full OpenFox Plugin API v2 extension for understanding and operating the Git topology behind a session without forking OpenFox.
 
+> **RPC surface is namespaced.** Every RPC exposed by this plugin is prefixed
+> with `gitWorkspace.` (e.g. `gitWorkspace.health`, `gitWorkspace.observe`,
+> `gitWorkspace.fetch`, `gitWorkspace.switchWorkspace`). The shared prefix
+> lives in `src/constants.ts` and is exported as `RPC_NAMESPACE`. The
+> single-file React panel resolves the same constant at build time, so the
+> plugin and the UI cannot drift apart.
+
 ## Architecture
 
 ```mermaid
@@ -44,7 +51,7 @@ This matches the OpenFox GitHub installer: after cloning a plugin repository, Op
 - `git pull` (ff-only / rebase / merge);
 - `git reset` (soft / mixed / hard) with explicit mode;
 - `git_workspace_inspect` agent tool;
-- `health` RPC exposing counters and cache stats;
+- `gitWorkspace.health` RPC exposing counters and cache stats;
 - i18n (en / fr) and theme toggle (dark / light);
 - React modals instead of `window.confirm` (sandbox-safe);
 - postMessage context delivery from parent (when supported) with referrer fallback.
@@ -56,15 +63,15 @@ The plugin depends on the following OpenFox REST endpoints. Every call goes thro
 
 | Endpoint | Method | Body | Used by |
 |---|---|---|---|
-| `/api/sessions/<id>` | GET | — | `hydrateSessionContext` (workdir lookup) |
-| `/api/sessions/<id>/branches` | GET | — | **Unused in current build** — `listBranches` reads local Git via `observe(c.workdir)` instead |
-| `/api/sessions/<id>/checkout-new` | POST | `{ name, sourceBranch? }` | `createBranch` |
-| `/api/sessions/<id>/checkout` | POST | `{ branch }` | `checkoutBranch` |
-| `/api/sessions/<id>/switch-workspace` | POST | `{ target, mode: 'create'\|'switch', branch?, sourceBranch? }` | `createWorkspace`, `switchWorkspace` |
-| `/api/sessions/<id>/delete-workspace` | POST | `{ target, force }` | `deleteWorkspace` (409 → retryWithForce) |
-| `/api/projects/<id>/workspaces` | GET | — | `listWorkspaces` |
-| `/api/projects/<id>/checkout-new` | POST | `{ name, sourceBranch? }` | `checkoutNew` |
-| `/api/sessions` | GET | `?projectId=&limit=100` | `listSessions` |
+| `/api/sessions/<id>` | GET | — | `gitWorkspace.resolveContext` (workdir lookup) |
+| `/api/sessions/<id>/branches` | GET | — | **Unused in current build** — `gitWorkspace.listBranches` reads local Git via `observe(c.workdir)` instead |
+| `/api/sessions/<id>/checkout-new` | POST | `{ name, sourceBranch? }` | `gitWorkspace.createBranch` |
+| `/api/sessions/<id>/checkout` | POST | `{ branch }` | `gitWorkspace.checkoutBranch` |
+| `/api/sessions/<id>/switch-workspace` | POST | `{ target, mode: 'create'\|'switch', branch?, sourceBranch? }` | `gitWorkspace.createWorkspace`, `gitWorkspace.switchWorkspace` |
+| `/api/sessions/<id>/delete-workspace` | POST | `{ target, force }` | `gitWorkspace.deleteWorkspace` (409 → retryWithForce) |
+| `/api/projects/<id>/workspaces` | GET | — | `gitWorkspace.listWorkspaces` |
+| `/api/projects/<id>/checkout-new` | POST | `{ name, sourceBranch? }` | `gitWorkspace.checkoutNew` |
+| `/api/sessions` | GET | `?projectId=&limit=100` | `gitWorkspace.listSessions` |
 
 > **Note:** the `mode` field on `/switch-workspace` is plugin-proposed (see upstream issue
 > `US-V2.1` in the repo issue tracker). Without `mode`, OpenFox cannot distinguish
@@ -141,12 +148,25 @@ Fields are merged with `localStorage` (localStorage wins for theme/lang/pollMs, 
 
 ## Migration
 
+### 1.3.0 → 1.3.1
+
+- **Breaking:** all plugin RPC methods are now namespaced with `gitWorkspace.`
+  (e.g. `health` → `gitWorkspace.health`, `observe` → `gitWorkspace.observe`,
+  `switchWorkspace` → `gitWorkspace.switchWorkspace`, …).
+- The session-row badge `source.method` is now `gitWorkspace.badge`.
+- HTTP endpoint `POST /api/plugins/<id>/rpc/<method>` now uses the namespaced
+  method (e.g. `/api/plugins/<id>/rpc/gitWorkspace.health`).
+- The shared prefix lives in `src/constants.ts`; the plugin server entry and
+  the bundled panel both import it, so no risk of drift.
+- The bundled React panel already targets the new names — no consumer rebuild
+  is required from installers beyond the usual `npm run build`.
+
 ### 1.2.0 → 1.3.0
 
 - `workdir` is now mandatory in every RPC. Calls without `workdir` return a structured `NO_WORKDIR` error.
 - `createWorkspace` and `switchWorkspace` now send a `mode` field (`create` vs `switch`).
 - `commonDir` is always returned as an absolute path.
-- Added `health` RPC for diagnostics (cache size, counters, uptime).
+- Added `gitWorkspace.health` RPC for diagnostics (cache size, counters, uptime).
 - UI uses `postMessage` (`openfox:panel-context`) when available; referrer fallback preserved.
 - `window.confirm` replaced by React modal (sandbox-safe).
 - Polling has a mutex (latest refresh wins, stale responses dropped).

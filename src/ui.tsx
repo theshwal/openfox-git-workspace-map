@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
+import { RPC_NAMESPACE } from './constants'
 import './ui.css'
 
 type Context={sessionId:string;workdir:string;projectId?:string}
@@ -147,7 +148,7 @@ export async function resolvePanelContext():Promise<Context>{
   if(fromParent){activeContext=fromParent;return fromParent}
   const fromSession=await sessionContextFromReferrer().catch(()=>null)
   if(fromSession){activeContext=fromSession;return fromSession}
-  const fallback=await rpc<Context>('resolveContext',{},null)
+  const fallback=await rpc<Context>(`${RPC_NAMESPACE}resolveContext`,{},null)
   activeContext=fallback
   return fallback
 }
@@ -155,15 +156,15 @@ export async function resolvePanelContext():Promise<Context>{
 export async function loadSnapshot():Promise<Snapshot>{
   const context=await resolvePanelContext()
   activeContext=context
-  const observed=await rpc<{ok:boolean;repo?:Repo;error?:string}>('observe',{},context)
+  const observed=await rpc<{ok:boolean;repo?:Repo;error?:string}>(`${RPC_NAMESPACE}observe`,{},context)
   const repo=observed.ok?observed.repo??null:null
   if(!context.sessionId){
     return {context, repo, branches:repo?.branches??[], workspaces:[], sessions:[], error:observed.error, loading:false}
   }
   const results=await Promise.allSettled([
-    rpc<{branches?:Branch[]}>('listBranches',{},context),
-    rpc<{workspaces?:Workspace[]}>('listWorkspaces',{},context),
-    rpc<{sessions?:Session[]}>('listSessions',{},context),
+    rpc<{branches?:Branch[]}>(`${RPC_NAMESPACE}listBranches`,{},context),
+    rpc<{workspaces?:Workspace[]}>(`${RPC_NAMESPACE}listWorkspaces`,{},context),
+    rpc<{sessions?:Session[]}>(`${RPC_NAMESPACE}listSessions`,{},context),
   ])
   const br=results[0].status==='fulfilled'?(results[0].value as {branches?:Branch[]}):({branches:[]})
   const ws=results[1].status==='fulfilled'?(results[1].value as {workspaces?:Workspace[]}):({workspaces:[]})
@@ -250,7 +251,7 @@ export function App(){
      const snap=await loadSnapshot()
      if(ticket>=lastCompletedRef.current){lastCompletedRef.current=ticket;setS(snap)}
      try{
-       const logs=await rpc<Array<{sha:string;author:string;date:string;subject:string}>>('logRecent',{limit:5})
+       const logs=await rpc<Array<{sha:string;author:string;date:string;subject:string}>>(`${RPC_NAMESPACE}logRecent`,{limit:5})
        if(ticket>=lastCompletedRef.current)setRecentCommits(Array.isArray(logs)?logs:[])
      }catch{/* non-fatal */}
    }catch(e){flashToast(e instanceof Error?e.message:String(e))}
@@ -281,22 +282,22 @@ export function App(){
  async function doCheckout(branchName:string){
    if(verbose)console.debug('[gwmap] doCheckout',branchName)
    try{
-     const will=await rpc<{conflict:boolean}>('willConflict',{target:branchName})
+     const will=await rpc<{conflict:boolean}>(`${RPC_NAMESPACE}willConflict`,{target:branchName})
      if(will?.conflict){setPendingCheckout({branch:branchName,conflict:true});return}
    }catch{/* best-effort */}
-   await run(`Checked out ${branchName}`,()=>rpc('checkoutBranch',{branch:branchName}))
+   await run(`Checked out ${branchName}`,()=>rpc(`${RPC_NAMESPACE}checkoutBranch`,{branch:branchName}))
  }
 
  async function confirmCheckout(){
    if(!pendingCheckout)return
    const {branch:bn}=pendingCheckout
    setPendingCheckout(null)
-   await run(`Checked out ${bn}`,()=>rpc('checkoutBranch',{branch:bn}))
+   await run(`Checked out ${bn}`,()=>rpc(`${RPC_NAMESPACE}checkoutBranch`,{branch:bn}))
  }
 
  async function doDelete(workspace:Workspace,force=false){
    await run(force?`Force deleted ${workspace.name}`:`Deleted ${workspace.name}`,async()=>{
-     const r=await rpc<{retryWithForce?:boolean;conflictingSessionIds?:string[];error?:string;ok?:boolean}>('deleteWorkspace',{target:workspace.name,force})
+     const r=await rpc<{retryWithForce?:boolean;conflictingSessionIds?:string[];error?:string;ok?:boolean}>(`${RPC_NAMESPACE}deleteWorkspace`,{target:workspace.name,force})
      if(r&&(r as {retryWithForce?:boolean}).retryWithForce){
        setPendingDelete({workspace,force:true,conflictingSessionIds:(r as {conflictingSessionIds?:string[]}).conflictingSessionIds??[],reason:(r as {error?:string}).error??''})
        return { retry:true }
@@ -329,7 +330,7 @@ export function App(){
  return <main className="app">
  <header><div><h1>{t('title')}</h1><p>{s?.context.sessionId?`${t('session')} ${s.context.sessionId.slice(0,8)}`:s?.context.workdir||t('noContext')}</p></div>
  <div className="row"><button onClick={()=>void refresh()}>{t('refresh')}</button>
- <button disabled={mutating} onClick={()=>void run(t('fetchAll'),()=>rpc('fetch'))}>{t('fetchAll')}</button>
+ <button disabled={mutating} onClick={()=>void run(t('fetchAll'),()=>rpc(`${RPC_NAMESPACE}fetch`))}>{t('fetchAll')}</button>
  <button onClick={()=>setTheme(theme==='dark'?'light':'dark')} aria-label="Toggle theme">{theme==='dark'?t('light'):t('dark')}</button>
  <select aria-label={t('language')} value={lang} onChange={e=>setLang(e.target.value as Lang)}><option value="en">EN</option><option value="fr">FR</option></select>
  <button onClick={()=>setVerbose(!verbose)} aria-label="Toggle verbose" title="Verbose">{verbose?'V●':'V○'}</button>
@@ -350,23 +351,23 @@ export function App(){
  </section>
 
  <article><h2>{t('branches')}</h2>
- <div className="form"><input aria-label={t('newBranch')} value={branch} onChange={e=>setBranch(e.target.value)} placeholder="feat/my-change"/><input aria-label={t('sourceBranch')} value={source} onChange={e=>setSource(e.target.value)} placeholder="source (optional)"/><button disabled={mutating||!branch.trim()} onClick={()=>void run(`Created ${branch}`,async()=>{await rpc('createBranch',{name:branch.trim(),...(source.trim()?{sourceBranch:source.trim()}:{})});setBranch('');setSource('')})}>{t('createCheckout')}</button></div>
+ <div className="form"><input aria-label={t('newBranch')} value={branch} onChange={e=>setBranch(e.target.value)} placeholder="feat/my-change"/><input aria-label={t('sourceBranch')} value={source} onChange={e=>setSource(e.target.value)} placeholder="source (optional)"/><button disabled={mutating||!branch.trim()} onClick={()=>void run(`Created ${branch}`,async()=>{await rpc(`${RPC_NAMESPACE}createBranch`,{name:branch.trim(),...(source.trim()?{sourceBranch:source.trim()}:{})});setBranch('');setSource('')})}>{t('createCheckout')}</button></div>
  {branchList.length===0?<EmptyState message={t('noBranches')}/>:
  <div className="list">{visibleBranches.map(b=><div className="item" key={b.name} tabIndex={0} role="button" aria-label={`Checkout ${b.name}`} onKeyDown={(e)=>{if(e.key==='Enter'&&!mutating&&!b.current)void doCheckout(b.name)}} onClick={()=>void doCheckout(b.name)}><div><strong>{b.current?'★ ':''}{b.name}</strong><small>{b.upstream||'no upstream'}</small></div><button disabled={mutating||b.current} onClick={(e)=>{e.stopPropagation();void doCheckout(b.name)}}>{t('checkout')}</button></div>)}
  {branchList.length>BRANCH_VISIBLE&&<button className="link" onClick={()=>setBranchesExpanded(!branchesExpanded)}>{branchesExpanded?t('showLess'):`${t('showAll')} (${branchList.length})`}</button>}</div>}
  </article>
 
  <article><h2>{t('workspaces')}</h2>
- <div className="form four"><input aria-label={t('workspaceName')} value={wsName} onChange={e=>setWsName(e.target.value)} placeholder="issue-123"/><input aria-label={t('workspaceBranch')} value={wsBranch} onChange={e=>setWsBranch(e.target.value)} placeholder="branch (optional)"/><input aria-label={t('workspaceSource')} value={wsSource} onChange={e=>setWsSource(e.target.value)} placeholder="source (optional)"/><button disabled={mutating||!wsName.trim()} onClick={()=>void run(`Workspace ${wsName} ready`,async()=>{await rpc('createWorkspace',{target:wsName.trim(),...(wsBranch.trim()?{branch:wsBranch.trim()}:{}),...(wsSource.trim()?{sourceBranch:wsSource.trim()}:{})});setWsName('');setWsBranch('');setWsSource('')})}>{t('createSwitch')}</button></div>
+ <div className="form four"><input aria-label={t('workspaceName')} value={wsName} onChange={e=>setWsName(e.target.value)} placeholder="issue-123"/><input aria-label={t('workspaceBranch')} value={wsBranch} onChange={e=>setWsBranch(e.target.value)} placeholder="branch (optional)"/><input aria-label={t('workspaceSource')} value={wsSource} onChange={e=>setWsSource(e.target.value)} placeholder="source (optional)"/><button disabled={mutating||!wsName.trim()} onClick={()=>void run(`Workspace ${wsName} ready`,async()=>{await rpc(`${RPC_NAMESPACE}createWorkspace`,{target:wsName.trim(),...(wsBranch.trim()?{branch:wsBranch.trim()}:{}),...(wsSource.trim()?{sourceBranch:wsSource.trim()}:{})});setWsName('');setWsBranch('');setWsSource('')})}>{t('createSwitch')}</button></div>
  <div className="list">{(s?.workspaces??[]).length===0?<EmptyState message={t('noWorkspaces')}/>:<>
- <div className="item"><div><strong>original</strong><small>{t('mainProjectWorkspace')}</small></div><button onClick={()=>void run('Switched to original',()=>rpc('switchWorkspace',{target:'original'}))}>{t('switch')}</button></div>
- {(s?.workspaces??[]).map(w=><div className="item" key={w.name}><div><strong>{w.name}</strong><small>{w.path||w.branch||''}{sessionCounts.get(w.name)?` · ${sessionCounts.get(w.name)} ${t('session')}(s)`:''}</small></div><div className="row"><button onClick={()=>void run(`Switched to ${w.name}`,()=>rpc('switchWorkspace',{target:w.name}))}>{t('switch')}</button><button className="danger" onClick={()=>void confirmDelete(w)}>{t('delete')}</button></div></div>)}
+ <div className="item"><div><strong>original</strong><small>{t('mainProjectWorkspace')}</small></div><button onClick={()=>void run('Switched to original',()=>rpc(`${RPC_NAMESPACE}switchWorkspace`,{target:'original'}))}>{t('switch')}</button></div>
+ {(s?.workspaces??[]).map(w=><div className="item" key={w.name}><div><strong>{w.name}</strong><small>{w.path||w.branch||''}{sessionCounts.get(w.name)?` · ${sessionCounts.get(w.name)} ${t('session')}(s)`:''}</small></div><div className="row"><button onClick={()=>void run(`Switched to ${w.name}`,()=>rpc(`${RPC_NAMESPACE}switchWorkspace`,{target:w.name}))}>{t('switch')}</button><button className="danger" onClick={()=>void confirmDelete(w)}>{t('delete')}</button></div></div>)}
 
  </>}</div></article>
 
  <section className="grid">
  <article><h2>{t('remotes')}</h2>
- <div className="form two"><select aria-label={t('remote')} value={remote} onChange={e=>setRemote(e.target.value)}><option value="">{t('allRemotes')}</option>{(repo?.remotes??[]).map(r=><option key={r.name}>{r.name}</option>)}</select><button onClick={()=>void run(remote?`Fetched ${remote}`:'Fetched all remotes',()=>rpc('fetch',remote?{remote}:{}))}>{t('fetch')}</button></div>
+ <div className="form two"><select aria-label={t('remote')} value={remote} onChange={e=>setRemote(e.target.value)}><option value="">{t('allRemotes')}</option>{(repo?.remotes??[]).map(r=><option key={r.name}>{r.name}</option>)}</select><button onClick={()=>void run(remote?`Fetched ${remote}`:'Fetched all remotes',()=>rpc(`${RPC_NAMESPACE}fetch`,remote?{remote}:{}))}>{t('fetch')}</button></div>
  {(repo?.remotes??[]).length===0?<EmptyState message={t('noRemotes')}/>:
  <div className="list">{(repo?.remotes??[]).map(r=><div className="item" key={r.name}><div><strong>{r.name}</strong><small className="mono">{r.fetchUrl}{r.pushUrl&&r.pushUrl!==r.fetchUrl?` · push ${r.pushUrl}`:''}</small></div></div>)}</div>}
  </article>
@@ -412,7 +413,7 @@ export function App(){
   <p className="muted">{t('forceCheckoutHint')}</p>
  </Modal>
 
- <Modal open={!!pendingReset} title={t('resetDestructive')} onCancel={()=>setPendingReset(null)} onConfirm={async()=>{if(!pendingReset)return;const {mode,target}=pendingReset;setPendingReset(null);await run(`Reset ${mode} ${target}`,()=>rpc('reset',{mode,target}))}} confirmLabel={t('confirmReset')} confirmDanger cancelText={t('cancel')}>
+ <Modal open={!!pendingReset} title={t('resetDestructive')} onCancel={()=>setPendingReset(null)} onConfirm={async()=>{if(!pendingReset)return;const {mode,target}=pendingReset;setPendingReset(null);await run(`Reset ${mode} ${target}`,()=>rpc(`${RPC_NAMESPACE}reset`,{mode,target}))}} confirmLabel={t('confirmReset')} confirmDanger cancelText={t('cancel')}>
   <p>{t('resetBody')} <strong>{pendingReset?.target}</strong> {t('resetModeLabel')} <strong>{pendingReset?.mode}</strong>?</p>
   <p className="muted">{pendingReset?.mode==='hard'?t('resetHardWarning'):pendingReset?.mode==='mixed'?t('resetMixedWarning'):t('resetSoftWarning')}</p>
  </Modal>

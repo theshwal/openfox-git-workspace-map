@@ -129,7 +129,7 @@ describe('uniform errors (DEV-18)', () => {
     const { rpcs } = makeRegistry()
     vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ error: 'boom' }), { status: 500 })))
     try {
-      await rpcs.get('listWorkspaces')!({}, { sessionId: 's1', workdir: '/tmp', projectId: 'p1' })
+      await rpcs.get('gitWorkspace.listWorkspaces')!({}, { sessionId: 's1', workdir: '/tmp', projectId: 'p1' })
       throw new Error('should have thrown')
     } catch (e) {
       const err = e as Error & { code?: string; retryable?: boolean }
@@ -142,12 +142,12 @@ describe('workdir mandatory (criterion 1.2)', () => {
   it('throws structured error when workdir is missing', async () => {
     const { rpcs } = makeRegistry()
     vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ session: null }), { status: 404 })))
-    await expect(rpcs.get('fetch')!({}, { sessionId: 's1' })).rejects.toThrow(/workdir is required/)
+    await expect(rpcs.get('gitWorkspace.fetch')!({}, { sessionId: 's1' })).rejects.toThrow(/workdir is required/)
   })
   it('does not fall back to process.cwd()', async () => {
     const { rpcs } = makeRegistry()
     vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ session: null }), { status: 404 })))
-    const result = await rpcs.get('badge')!({}, { sessionId: 's1' })
+    const result = await rpcs.get('gitWorkspace.badge')!({}, { sessionId: 's1' })
     expect(result).toBe('no-ctx')
   })
 })
@@ -177,7 +177,7 @@ describe('createWorkspace vs switchWorkspace (criterion 2.1)', () => {
       return new Response(JSON.stringify({ ok: true }), { status: 200 })
     })
     vi.stubGlobal('fetch', fetchMock)
-    await rpcs.get('createWorkspace')!({ target: 'issue-1' }, { sessionId: 's1', workdir: '/tmp' })
+    await rpcs.get('gitWorkspace.createWorkspace')!({ target: 'issue-1' }, { sessionId: 's1', workdir: '/tmp' })
     expect(fetchMock).toHaveBeenCalledOnce()
   })
   it('sends mode=switch for switchWorkspace', async () => {
@@ -189,7 +189,7 @@ describe('createWorkspace vs switchWorkspace (criterion 2.1)', () => {
       return new Response(JSON.stringify({ ok: true }), { status: 200 })
     })
     vi.stubGlobal('fetch', fetchMock)
-    await rpcs.get('switchWorkspace')!({ target: 'issue-1' }, { sessionId: 's1', workdir: '/tmp' })
+    await rpcs.get('gitWorkspace.switchWorkspace')!({ target: 'issue-1' }, { sessionId: 's1', workdir: '/tmp' })
     expect(fetchMock).toHaveBeenCalledOnce()
   })
 })
@@ -225,14 +225,14 @@ describe('HTTP retry (criterion DEV-17)', () => {
       return new Response(JSON.stringify({ workspaces: [] }), { status: 200 })
     })
     vi.stubGlobal('fetch', fetchMock)
-    await rpcs.get('listWorkspaces')!({}, { sessionId: 's1', workdir: '/tmp', projectId: 'p1' })
+    await rpcs.get('gitWorkspace.listWorkspaces')!({}, { sessionId: 's1', workdir: '/tmp', projectId: 'p1' })
     expect(attempts).toBeGreaterThanOrEqual(2)
   })
   it('does not retry on 4xx', async () => {
     const { rpcs } = makeRegistry()
     let attempts = 0
     vi.stubGlobal('fetch', vi.fn(async () => { attempts++; return new Response(JSON.stringify({ error: 'bad' }), { status: 400 }) }))
-    await expect(rpcs.get('listWorkspaces')!({}, { sessionId: 's1', workdir: '/tmp', projectId: 'p1' })).rejects.toThrow()
+    await expect(rpcs.get('gitWorkspace.listWorkspaces')!({}, { sessionId: 's1', workdir: '/tmp', projectId: 'p1' })).rejects.toThrow()
     expect(attempts).toBe(1)
   })
 })
@@ -240,7 +240,7 @@ describe('HTTP retry (criterion DEV-17)', () => {
 describe('health RPC (criterion DEV-20)', () => {
   it('returns counters and cache size', async () => {
     const { rpcs } = makeRegistry()
-    const health = await rpcs.get('health')!({}, {}) as { counters: { gitSpawns: number }; cacheSize: number; nodeVersion: string }
+    const health = await rpcs.get('gitWorkspace.health')!({}, {}) as { counters: { gitSpawns: number }; cacheSize: number; nodeVersion: string }
     expect(health.counters).toBeTruthy()
     expect(typeof health.cacheSize).toBe('number')
     expect(health.nodeVersion).toMatch(/^v\d+/)
@@ -251,12 +251,12 @@ describe('stash + tag RPCs (DEV-21, DEV-22)', () => {
   it('listStashes returns an array', async () => {
     const { rpcs } = makeRegistry()
     vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({}), { status: 200 })))
-    const result = await rpcs.get('listStashes')!({}, { sessionId: 's1', workdir: '/tmp' })
+    const result = await rpcs.get('gitWorkspace.listStashes')!({}, { sessionId: 's1', workdir: '/tmp' })
     expect(Array.isArray(result)).toBe(true)
   })
   it('listTags returns an array', async () => {
     const { rpcs } = makeRegistry()
-    const result = await rpcs.get('listTags')!({}, { sessionId: 's1', workdir: '/tmp' })
+    const result = await rpcs.get('gitWorkspace.listTags')!({}, { sessionId: 's1', workdir: '/tmp' })
     expect(Array.isArray(result)).toBe(true)
   })
 })
