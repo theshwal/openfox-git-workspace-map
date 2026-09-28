@@ -2,6 +2,9 @@ import { execFile as execFileCb } from 'node:child_process'
 import { promisify } from 'node:util'
 import { resolve as resolvePath, isAbsolute } from 'node:path'
 import { existsSync } from 'node:fs'
+import { RPC_NAMESPACE } from './constants.js'
+
+export { RPC_NAMESPACE } from './constants.js'
 
 const execFile = promisify(execFileCb)
 const DEFAULT_TIMEOUT = 15_000
@@ -487,65 +490,65 @@ export function register(registry: RegistryLike): void {
     label:{en:'git',fr:'git'},
     tone:'info',
     visibleWhen:{hasSession:true},
-    source:{kind:'rpc',method:'badge'}
+    source:{kind:'rpc',method:`${RPC_NAMESPACE}badge`}
   })
   registry.registerUiPanel({ id:'git-workspace', title:{en:'Git Workspace Map',fr:'Carte Git / Workspaces'}, size:'lg', kind:'iframe', url:'dist/ui/git-workspace.html' })
   registry.registerAsset('dist/ui/git-workspace.html')
 
-  registry.registerRpc('resolveContext', wrap(async (_p, c) => c))
-  registry.registerRpc('badge', wrap(async (_p, c) => {
+  registry.registerRpc(`${RPC_NAMESPACE}resolveContext`, wrap(async (_p, c) => c))
+  registry.registerRpc(`${RPC_NAMESPACE}badge`, wrap(async (_p, c) => {
     if (!c.workdir) return 'no-ctx'
     const x = await observe(c.workdir); if (!x.ok) return '?'
     const r = x.value; if (!r.isRepository) return 'no-git'
     if (!r.branch) return 'detached'
     return `${r.branch}${r.dirty?.modified ? ` ±${r.dirty.modified}` : ''}${badgeDelta(r.ahead, r.behind)}`
   }))
-  registry.registerRpc('observe', wrap(async (_p, c) => {
+  registry.registerRpc(`${RPC_NAMESPACE}observe`, wrap(async (_p, c) => {
     if (!c.workdir) return { ok: false, context: c, error: 'workdir is required' }
     const x = await observe(c.workdir, { skipCache: true })
     return x.ok ? { ok: true, context: c, repo: x.value } : { ok: false, context: c, error: x.error }
   }))
 
-  registry.registerRpc('fetch', wrap(async (p, c) => {
+  registry.registerRpc(`${RPC_NAMESPACE}fetch`, wrap(async (p, c) => {
     requireWorkdir(c)
     const remote = typeof p.remote === 'string' ? p.remote : undefined
     const x = await fetchRemote(c.workdir, remote)
     if (!x.ok) throw new Error(x.error)
     return { ok: true, ...x.value }
   }))
-  registry.registerRpc('listBranches', wrap(async (_p, c) => {
+  registry.registerRpc(`${RPC_NAMESPACE}listBranches`, wrap(async (_p, c) => {
     requireWorkdir(c)
     const obs = await observe(c.workdir)
     if (!obs.ok) throw new Error(obs.error)
     return { branches: obs.value.branches ?? [] }
   }))
-  registry.registerRpc('createBranch', wrap(async (p, c) => {
+  registry.registerRpc(`${RPC_NAMESPACE}createBranch`, wrap(async (p, c) => {
     if (!c.sessionId) throw new Error('No active session.')
     return httpJSONWithRetry(`/api/sessions/${encodeURIComponent(c.sessionId)}/checkout-new`, { method: 'POST', body: { name: required(p.name, 'Branch name'), ...(typeof p.sourceBranch === 'string' && p.sourceBranch.trim() ? { sourceBranch: p.sourceBranch.trim() } : {}) } })
   }))
-  registry.registerRpc('checkoutBranch', wrap(async (p, c) => {
+  registry.registerRpc(`${RPC_NAMESPACE}checkoutBranch`, wrap(async (p, c) => {
     if (!c.sessionId) throw new Error('No active session.')
     return httpJSONWithRetry(`/api/sessions/${encodeURIComponent(c.sessionId)}/checkout`, { method: 'POST', body: { branch: required(p.branch, 'Branch name') } })
   }))
-  registry.registerRpc('checkoutNew', wrap(async (p, c) => {
+  registry.registerRpc(`${RPC_NAMESPACE}checkoutNew`, wrap(async (p, c) => {
     if (!c.projectId) throw new Error('No project context.')
     return httpJSONWithRetry(`/api/projects/${encodeURIComponent(c.projectId)}/checkout-new`, { method: 'POST', body: { name: required(p.name, 'Branch name'), ...(typeof p.sourceBranch === 'string' ? { sourceBranch: p.sourceBranch } : {}) } })
   }))
-  registry.registerRpc('listWorkspaces', wrap(async (_p, c) => {
+  registry.registerRpc(`${RPC_NAMESPACE}listWorkspaces`, wrap(async (_p, c) => {
     if (!c.projectId) throw new Error('No project context.')
     return httpJSONWithRetry(`/api/projects/${encodeURIComponent(c.projectId)}/workspaces`)
   }))
-  registry.registerRpc('listSessions', wrap(async (_p, c) => httpJSONWithRetry(`/api/sessions${c.projectId ? `?projectId=${encodeURIComponent(c.projectId)}&limit=100` : ''}`)))
+  registry.registerRpc(`${RPC_NAMESPACE}listSessions`, wrap(async (_p, c) => httpJSONWithRetry(`/api/sessions${c.projectId ? `?projectId=${encodeURIComponent(c.projectId)}&limit=100` : ''}`)))
 
-  registry.registerRpc('switchWorkspace', wrap(async (p, c) => {
+  registry.registerRpc(`${RPC_NAMESPACE}switchWorkspace`, wrap(async (p, c) => {
     if (!c.sessionId) throw new Error('No active session.')
     return httpJSONWithRetry(`/api/sessions/${encodeURIComponent(c.sessionId)}/switch-workspace`, { method: 'POST', body: { target: required(p.target, 'Workspace target'), mode: 'switch', ...(typeof p.branch === 'string' && p.branch ? { branch: p.branch } : {}), ...(typeof p.sourceBranch === 'string' && p.sourceBranch ? { sourceBranch: p.sourceBranch } : {}) } })
   }))
-  registry.registerRpc('createWorkspace', wrap(async (p, c) => {
+  registry.registerRpc(`${RPC_NAMESPACE}createWorkspace`, wrap(async (p, c) => {
     if (!c.sessionId) throw new Error('No active session.')
     return httpJSONWithRetry(`/api/sessions/${encodeURIComponent(c.sessionId)}/switch-workspace`, { method: 'POST', body: { target: required(p.target, 'Workspace target'), mode: 'create', ...(typeof p.branch === 'string' && p.branch ? { branch: p.branch } : {}), ...(typeof p.sourceBranch === 'string' && p.sourceBranch ? { sourceBranch: p.sourceBranch } : {}) } })
   }))
-  registry.registerRpc('deleteWorkspace', wrap(async (p, c) => {
+  registry.registerRpc(`${RPC_NAMESPACE}deleteWorkspace`, wrap(async (p, c) => {
     if (!c.sessionId) throw new Error('No active session.')
     try {
       return await httpJSONWithRetry(`/api/sessions/${encodeURIComponent(c.sessionId)}/delete-workspace`, { method: 'POST', body: { target: required(p.target, 'Workspace target'), force: p.force === true } })
@@ -555,58 +558,58 @@ export function register(registry: RegistryLike): void {
     }
   }))
 
-  registry.registerRpc('listStashes', wrap(async (_p, c) => {
+  registry.registerRpc(`${RPC_NAMESPACE}listStashes`, wrap(async (_p, c) => {
     requireWorkdir(c)
     const x = await stashList(c.workdir); if (!x.ok) throw new Error(x.error); return x.value
   }))
-  registry.registerRpc('applyStash', wrap(async (p, c) => {
+  registry.registerRpc(`${RPC_NAMESPACE}applyStash`, wrap(async (p, c) => {
     requireWorkdir(c); const idx = typeof p.index === 'number' ? p.index : 0
     const x = await stashApply(c.workdir, idx); if (!x.ok) throw new Error(x.error); return x.value
   }))
-  registry.registerRpc('popStash', wrap(async (p, c) => {
+  registry.registerRpc(`${RPC_NAMESPACE}popStash`, wrap(async (p, c) => {
     requireWorkdir(c); const idx = typeof p.index === 'number' ? p.index : 0
     const x = await stashPop(c.workdir, idx); if (!x.ok) throw new Error(x.error); return x.value
   }))
-  registry.registerRpc('dropStash', wrap(async (p, c) => {
+  registry.registerRpc(`${RPC_NAMESPACE}dropStash`, wrap(async (p, c) => {
     requireWorkdir(c); const idx = typeof p.index === 'number' ? p.index : 0
     const x = await stashDrop(c.workdir, idx); if (!x.ok) throw new Error(x.error); return x.value
   }))
-  registry.registerRpc('listTags', wrap(async (_p, c) => {
+  registry.registerRpc(`${RPC_NAMESPACE}listTags`, wrap(async (_p, c) => {
     requireWorkdir(c)
     const x = await tagList(c.workdir); if (!x.ok) throw new Error(x.error); return x.value
   }))
-  registry.registerRpc('createTag', wrap(async (p, c) => {
+  registry.registerRpc(`${RPC_NAMESPACE}createTag`, wrap(async (p, c) => {
     requireWorkdir(c)
     const x = await tagCreate(c.workdir, required(p.name, 'Tag name'), typeof p.message === 'string' ? p.message : undefined)
     if (!x.ok) throw new Error(x.error); return x.value
   }))
-  registry.registerRpc('deleteTag', wrap(async (p, c) => {
+  registry.registerRpc(`${RPC_NAMESPACE}deleteTag`, wrap(async (p, c) => {
     requireWorkdir(c)
     const x = await tagDelete(c.workdir, required(p.name, 'Tag name'))
     if (!x.ok) throw new Error(x.error); return x.value
   }))
-  registry.registerRpc('logRecent', wrap(async (p, c) => {
+  registry.registerRpc(`${RPC_NAMESPACE}logRecent`, wrap(async (p, c) => {
     requireWorkdir(c); const limit = typeof p.limit === 'number' ? Math.max(1, Math.min(50, p.limit)) : 10
     const x = await logRecent(c.workdir, limit); if (!x.ok) throw new Error(x.error); return x.value
   }))
-  registry.registerRpc('diffStat', wrap(async (_p, c) => {
+  registry.registerRpc(`${RPC_NAMESPACE}diffStat`, wrap(async (_p, c) => {
     requireWorkdir(c); const x = await diffStatRaw(c.workdir); if (!x.ok) throw new Error(x.error); return x.value
   }))
-  registry.registerRpc('willConflict', wrap(async (p, c) => {
+  registry.registerRpc(`${RPC_NAMESPACE}willConflict`, wrap(async (p, c) => {
     requireWorkdir(c); const x = await willConflict(c.workdir, required(p.target, 'target branch'))
     return x.ok ? x.value : { conflict: true }
   }))
-  registry.registerRpc('pull', wrap(async (p, c) => {
+  registry.registerRpc(`${RPC_NAMESPACE}pull`, wrap(async (p, c) => {
     requireWorkdir(c); const mode = (p.mode === 'rebase' || p.mode === 'merge') ? p.mode : 'ff-only'
     const remote = typeof p.remote === 'string' ? p.remote : undefined
     const branch = typeof p.branch === 'string' ? p.branch : undefined
     const x = await pull(c.workdir, mode, remote, branch); if (!x.ok) throw new Error(x.error); return x.value
   }))
-  registry.registerRpc('reset', wrap(async (p, c) => {
+  registry.registerRpc(`${RPC_NAMESPACE}reset`, wrap(async (p, c) => {
     requireWorkdir(c); const mode: ResetMode = (p.mode === 'soft' || p.mode === 'hard') ? p.mode : 'mixed'
     const x = await reset(c.workdir, mode, required(p.target, 'target')); if (!x.ok) throw new Error(x.error); return x.value
   }))
-  registry.registerRpc('health', wrap(async () => ({
+  registry.registerRpc(`${RPC_NAMESPACE}health`, wrap(async () => ({
     counters: getCounters(),
     cacheSize: cache.size,
     uptime: process.uptime(),

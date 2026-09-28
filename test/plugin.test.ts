@@ -42,13 +42,14 @@ describe('TypeScript plugin contract', () => {
     expect(value.registrations.actions[0]?.slot).toBe('composer.actions')
     expect(value.registrations.badges).toHaveLength(1)
     expect(value.registrations.badges[0]?.slot).toBe('session.row.badges')
+    expect(value.registrations.badges[0]?.source).toEqual({ kind: 'rpc', method: 'gitWorkspace.badge' })
     expect(value.registrations.panels).toBe(1)
     expect(value.registrations.assets).toEqual(['dist/ui/git-workspace.html'])
     expect(value.registrations.hooks).toEqual(expect.arrayContaining(['session.created', 'turn.completed']))
     expect([...value.rpcs.keys()]).toEqual(expect.arrayContaining([
-      'resolveContext','badge','observe','fetch','listBranches','createBranch',
-      'checkoutBranch','checkoutNew','listWorkspaces','listSessions',
-      'switchWorkspace','createWorkspace','deleteWorkspace'
+      'gitWorkspace.resolveContext','gitWorkspace.badge','gitWorkspace.observe','gitWorkspace.fetch','gitWorkspace.listBranches','gitWorkspace.createBranch',
+      'gitWorkspace.checkoutBranch','gitWorkspace.checkoutNew','gitWorkspace.listWorkspaces','gitWorkspace.listSessions',
+      'gitWorkspace.switchWorkspace','gitWorkspace.createWorkspace','gitWorkspace.deleteWorkspace'
     ]))
   })
 
@@ -76,7 +77,7 @@ describe('TypeScript plugin contract', () => {
       return new Response(JSON.stringify({ branch: 'feat/test' }), { status: 200 })
     })
     vi.stubGlobal('fetch', fetchMock)
-    await value.rpcs.get('createBranch')!({ name: 'feat/test', sourceBranch: 'main' }, { sessionId: 's1', workdir: '/tmp' })
+    await value.rpcs.get('gitWorkspace.createBranch')!({ name: 'feat/test', sourceBranch: 'main' }, { sessionId: 's1', workdir: '/tmp' })
     expect(fetchMock).toHaveBeenCalledOnce()
   })
 
@@ -86,7 +87,7 @@ describe('TypeScript plugin contract', () => {
       JSON.stringify({ error: 'Workspace in use', conflictingSessionIds: ['a','b'] }),
       { status: 409 }
     )))
-    const result = await value.rpcs.get('deleteWorkspace')!({ target: 'issue-7' }, { sessionId: 's1', workdir: '/tmp' })
+    const result = await value.rpcs.get('gitWorkspace.deleteWorkspace')!({ target: 'issue-7' }, { sessionId: 's1', workdir: '/tmp' })
     expect(result).toEqual({
       ok: false, error: 'Workspace in use', retryWithForce: true, conflictingSessionIds: ['a','b']
     })

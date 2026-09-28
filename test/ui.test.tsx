@@ -63,11 +63,11 @@ function installRpcMock() {
       }
     })
     let data: unknown = { ok: true }
-    if (method === 'resolveContext') data = context
-    if (method === 'observe') data = { ok: true, repo }
-    if (method === 'listBranches') data = { branches: repo.branches }
-    if (method === 'listWorkspaces') data = { workspaces: [{ name: 'issue-7', path: '/repo/ws' }] }
-    if (method === 'listSessions') data = { sessions: [{ id: 'session-12345678', title: 'Test session', workspace: 'issue-7', branch: 'feat/x' }] }
+    if (method === 'gitWorkspace.resolveContext') data = context
+    if (method === 'gitWorkspace.observe') data = { ok: true, repo }
+    if (method === 'gitWorkspace.listBranches') data = { branches: repo.branches }
+    if (method === 'gitWorkspace.listWorkspaces') data = { workspaces: [{ name: 'issue-7', path: '/repo/ws' }] }
+    if (method === 'gitWorkspace.listSessions') data = { sessions: [{ id: 'session-12345678', title: 'Test session', workspace: 'issue-7', branch: 'feat/x' }] }
     return new Response(JSON.stringify({ result: data }), { status: 200 })
   }))
   return calls
@@ -88,7 +88,7 @@ describe('React panel', () => {
     render(<App />)
     await screen.findByText('Git Workspace Map')
     await waitFor(() => expect(calls).toContainEqual({
-      method: 'observe',
+      method: 'gitWorkspace.observe',
       params: {},
       context: { sessionId: 'session-12345678', workdir: '/repo', projectId: 'project-1' }
     }))
@@ -98,7 +98,7 @@ describe('React panel', () => {
     const calls = installRpcMock()
     render(<App />)
     fireEvent.click(await screen.findByRole('button', { name: /Fetch all/i }))
-    await waitFor(() => expect(calls.some((call) => call.method === 'fetch')).toBe(true))
+    await waitFor(() => expect(calls.some((call) => call.method === 'gitWorkspace.fetch')).toBe(true))
   })
 
   it('creates and checks out a branch with an optional source', async () => {
@@ -108,7 +108,7 @@ describe('React panel', () => {
     fireEvent.change(screen.getByLabelText('Source branch'), { target: { value: 'develop' } })
     fireEvent.click(screen.getByRole('button', { name: 'Create & checkout' }))
     await waitFor(() => expect(calls).toContainEqual({
-      method: 'createBranch',
+      method: 'gitWorkspace.createBranch',
       params: { name: 'feat/react', sourceBranch: 'develop' },
       context: { sessionId: 'session-12345678', workdir: '/repo', projectId: 'project-1' }
     }))
